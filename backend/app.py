@@ -63,7 +63,7 @@ def get_bulletin():
 
     return room.bulletin.get().decode('utf-8')
 
-@app.route('/api/set-index')
+@app.route('/api/start-song')
 def set_index():
     room_id = request.args['room_id']
     index = int(request.args['index'])
@@ -71,6 +71,7 @@ def set_index():
     room = Room(room_id)
 
     room.set_index(index)
+    room.start_singing()
 
     return encoding.encode({'success': True})
 
@@ -125,17 +126,9 @@ def heartbeat():
     # or different parts of cleanup at different times?
     room.cleanup()
 
-    print('responding with', {
-        'singing': room.singing.get().decode('utf-8'),
-        'index': room.index.get().decode('utf-8'),
-        'users': room.get_users()
-    })
+    print('responding with', room.get_state())
 
-    return encoding.encode({
-        'singing': room.singing.get().decode('utf-8'),
-        'index': room.index.get().decode('utf-8'),
-        'users': room.get_users()
-    })
+    return encoding.encode(room.get_state())
 
 @app.route('/api/stop-song')
 def stop_song():

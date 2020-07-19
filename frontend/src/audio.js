@@ -2,15 +2,14 @@ let mediaStream = null
 
 function getMediaStream () {
   if (mediaStream != null) {
-    return new Promise((resolve, reject) => {
-      resolve(mediaStream.clone())
-    })
+    return Promise.resolve(mediaStream)
   } else {
-    mediaStream = navigator.mediaDevices.getUserMedia(
+    return navigator.mediaDevices.getUserMedia(
       {audio: true, video: false}
-    )
-
-    return mediaStream
+    ).then((stream) => {
+      mediaStream = stream
+      return stream
+    })
   }
 }
 
@@ -101,7 +100,7 @@ function measureLatency (context) {
     return recordAtTime(context, stream, supposedTime, supposedTime + 1)
   }).then(([buffer, offset]) => {
     // Decode the resulting audio
-    return [context.decodeAudioData(buffer), offset]
+    return Promise.all([context.decodeAudioData(buffer), offset])
   }).then(([audioBuffer, offset]) => {
     // Determine when the audio was first heard
     const channelData = audioBuffer.getChannelData(0)

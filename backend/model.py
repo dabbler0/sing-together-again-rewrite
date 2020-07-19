@@ -84,9 +84,10 @@ class Room(model.RedisModel):
 
             user = User(user_pk)
 
-            audio, offset = user.get_audio(index, parity)
+            attempt = user.get_audio(index, parity)
 
-            if audio is not None:
+            if attempt is not None:
+                audio, offset = user.get_audio(index, parity)
                 result = result.overlay(audio, offset)
 
         return result
@@ -138,16 +139,16 @@ class Room(model.RedisModel):
 
     def get_state(self):
         return {
-            'singing': self.singing.get().decode('utf-8'),
-            'index': self.index.get().decode('utf-8'),
+            'singing': self.singing.get().decode('utf-8') == '1',
+            'index': int(self.index.get().decode('utf-8')),
             'users': self.get_users()
         }
 
     def stop_singing(self):
-        self.singing.set(False)
+        self.singing.set(0)
 
     def start_singing(self):
-        self.singing.set(True)
+        self.singing.set(1)
 
     def set_index(self, index):
         self.index.set(index)

@@ -1,17 +1,17 @@
 <template>
-  <div id="app">
-    <div id="header">
-      <h1>Sing together again</h1>
-    </div>
+  <v-app id="inspire">
+    <v-app-bar
+      app
+      color="indigo"
+      dark
+    >
+      <v-toolbar-title>Sing Together Again</v-toolbar-title>
+    </v-app-bar>
 
-    <div id="contents">
-        <router-view/>
-    </div>
-
-    <div id="footer">
-        By Anthony Bau. MIT License.
-    </div>
-  </div>
+    <v-main style="position:absolute; top:0; bottom: 0; left: 0; right: 0">
+      <router-view/>
+    </v-main>
+  </v-app>
 </template>
 
 <script>

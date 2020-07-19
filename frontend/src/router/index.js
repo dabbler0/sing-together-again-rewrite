@@ -1,17 +1,12 @@
 import Vue from 'vue'
-import BootstrapVue from 'bootstrap-vue'
 import Router from 'vue-router'
 import Welcome from '@/components/Welcome'
 import Join from '@/components/Join'
 import Create from '@/components/Create'
 import Sing from '@/components/Sing'
-import Upload from '@/components/Upload'
-
-import 'bootstrap/dist/css/bootstrap.css'
-import 'bootstrap-vue/dist/bootstrap-vue.css'
+import Calibrate from '@/components/Calibrate'
 
 Vue.use(Router)
-Vue.use(BootstrapVue)
 
 // The one audiocontext everone will use
 const context = new AudioContext()
@@ -36,6 +31,7 @@ export default new Router({
     {
       path: '/create',
       name: 'Create',
+      props: {context},
       component: Create
     },
     {
@@ -45,10 +41,10 @@ export default new Router({
       component: Sing
     },
     {
-      path: '/upload',
-      name: 'Upload',
+      path: '/calibrate/:room/:user',
+      name: 'Calibrate',
       props: {context},
-      component: Upload
+      component: Calibrate
     }
   ]
 })

@@ -1,22 +1,34 @@
 <template>
-    <div>
-      Upload an accompaniment:
-      <input ref="input" type="file" class="form-control-file" v-on:change="processFile()"/>
-      <div v-if="hasSound">
-        <div>Cut and finish:</div>
-        (TODO start/end sliders)
-        <input v-model="name" placeholder="Name" class="form-control"/>
-        <textarea v-model="credits" placeholder="Credits" class="form-control"></textarea>
-        <button v-on:click="submit()">Submit</button>
-      </div>
-    </div>
+    <v-card>
+      <v-card-title>Upload an accompaniment</v-card-title>
+
+      <v-card-text>
+        <v-form>
+          <v-file-input ref="input" v-on:change="(files) => processFile(files)"></v-file-input>
+          <div v-if="hasSound">
+            <div>Cut and finish:</div>
+            <v-range-slider
+              thumb-label="always"
+              v-model="timeRange"
+              v-on:end="reclip()"
+              step="0.01"
+              min="0"
+              :max="fullDuration"></v-range-slider>
+            <v-text-field v-model="name" label="Name of song"></v-text-field>
+            <v-textarea v-model="credits" label="Credits"></v-textarea>
+            <v-btn v-on:click="$emit('cancel')">Cancel</v-btn>
+            <v-btn v-on:click="submit()" color="primary">Submit</v-btn>
+          </div>
+        </v-form>
+      </v-card-text>
+    </v-card>
 </template>
 
 <script>
 import brq from '@/binaryRequests'
 
 export default {
-  name: 'Welcome',
+  name: 'Upload',
   props: ['context'],
   data () {
     return {
@@ -26,38 +38,42 @@ export default {
       file: null,
       fileFormat: null,
       sourceNode: null,
-      startTime: 0,
-      endTime: 0
+      timeRange: [0, 0],
+      fullDuration: 0
     }
   },
   methods: {
+    reclip () {
+      this.sourceNode.loopStart = this.timeRange[0]
+      this.sourceNode.loopEnd = this.timeRange[1]
+    },
+
     submit () {
       this.sourceNode.stop()
 
-      new Response(this.file).arrayBuffer().then((buffer) => {
+      this.file.arrayBuffer().then((buffer) => {
         brq.post('/api/new-song', {}, {
           'audio': buffer,
           'format': this.fileFormat,
           'name': this.name,
           'credits': this.credits,
-          'start-time': Math.round(this.startTime * 1000),
-          'end-time': Math.round(this.endTime * 1000)
+          'start-time': Math.round(this.timeRange[0] * 1000),
+          'end-time': Math.round(this.timeRange[1] * 1000)
         }).then(() => {
-          this.$router.push('/create')
+          console.log('finishing submission')
+          this.$emit('submit')
         })
       })
     },
 
-    processFile () {
-      console.log(this.$refs.input.files)
-      const file = this.$refs.input.files[0]
-      const fileName = this.$refs.input.value
+    processFile (file) {
+      const fileName = file.name
       const fileFormat = fileName.substr(fileName.indexOf('.') + 1)
 
       this.file = file
       this.fileFormat = fileFormat
 
-      new Response(file).arrayBuffer().then((buffer) => {
+      file.arrayBuffer().then((buffer) => {
         this.context.decodeAudioData(buffer, (audioBuffer) => {
           // TODO cutting UI
 
@@ -69,8 +85,8 @@ export default {
           this.sourceNode.connect(this.context.destination)
           this.sourceNode.start()
 
-          this.startTime = 0
-          this.endTime = audioBuffer.duration
+          this.timeRange = [0, audioBuffer.duration]
+          this.fullDuration = audioBuffer.duration
 
           this.hasSound = true
         })
