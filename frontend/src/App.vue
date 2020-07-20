@@ -1,13 +1,5 @@
 <template>
   <v-app id="inspire">
-    <!--<v-app-bar
-      app
-      color="indigo"
-      dark
-    >
-      <v-toolbar-title>Sing Together Again</v-toolbar-title>
-    </v-app-bar>-->
-
     <v-main style="position:absolute; top:0; bottom: 32px; left: 0; right: 0">
       <router-view/>
     </v-main>
