@@ -12,7 +12,7 @@
           sm="8"
           md="4"
         >
-        <JoinInsert @submit="(roomId, name) => join(roomId, name)" @cancel="this.$router.push('/')"></JoinInsert>
+        <JoinInsert @submit="(roomId, name) => join(roomId, name)" @cancel="$router.push('/')"></JoinInsert>
         </v-col>
       </v-row>
     </v-container>
