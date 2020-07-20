@@ -13,9 +13,9 @@
     </v-main>
 
     <v-footer absolute style="height:32px" class="justify-center">
-      Sing Together Again
+      <router-link to="/">Sing Together Again</router-link>
       <router-link to="/about" class="ml-5 mr-5">About</router-link>
-      <router-link to="/contribute">Contribute</router-link>
+      <router-link to="/contributing">Contribute</router-link>
     </v-footer>
   </v-app>
 </template>

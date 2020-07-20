@@ -5,6 +5,8 @@ import Join from '@/components/Join'
 import Create from '@/components/Create'
 import Sing from '@/components/Sing'
 import Calibrate from '@/components/Calibrate'
+import About from '@/components/About'
+import Contributing from '@/components/Contributing'
 
 Vue.use(Router)
 
@@ -17,6 +19,16 @@ export default new Router({
       path: '/',
       name: 'Welcome',
       component: Welcome
+    },
+    {
+      path: '/about',
+      name: 'About',
+      component: About
+    },
+    {
+      path: '/contributing',
+      name: 'Contributing',
+      component: Contributing
     },
     {
       path: '/join',
