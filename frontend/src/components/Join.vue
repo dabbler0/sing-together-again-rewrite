@@ -12,39 +12,15 @@
           sm="8"
           md="4"
         >
-          <v-card class="elevation-12" align="center">
-            <v-card-title class="indigo white--text">Join Room</v-card-title>
-
-            <v-spacer></v-spacer>
-
-            <v-card-text>
-              <v-form>
-                <v-text-field
-                  label="Room ID"
-                  name="Room ID"
-                  v-model="roomId"
-                  type="text">
-                </v-text-field>
-                <v-text-field
-                  label="Your Name"
-                  name="Your Name"
-                  v-model="name"
-                  type="text">
-                </v-text-field>
-              </v-form>
-            </v-card-text>
-
-            <v-card-actions class="justify-center">
-              <v-btn to="/" large>Back</v-btn>
-              <v-btn color="primary" v-on:click="join()" large>Join</v-btn>
-            </v-card-actions>
-          </v-card>
+        <JoinInsert @submit="(roomId, name) => join(roomId, name)" @cancel="this.$router.push('/')"></JoinInsert>
         </v-col>
       </v-row>
     </v-container>
 </template>
 
 <script>
+import JoinInsert from '@/components/JoinInsert'
+
 export default {
   name: 'Welcome',
   data () {
@@ -53,10 +29,11 @@ export default {
       name: ''
     }
   },
+  components: {JoinInsert},
   methods: {
-    join () {
+    join (roomId, name) {
       this.$router.push(
-        '/calibrate/' + this.roomId + '/' + encodeURIComponent(this.name)
+        '/calibrate/' + roomId + '/' + encodeURIComponent(name)
       )
     }
   }

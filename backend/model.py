@@ -1,7 +1,7 @@
 from limpyd import model
 import time
-import encoding
-import pydub_helpers
+from . import encoding
+from . import pydub_helpers
 from urllib.parse import urlparse
 import os
 

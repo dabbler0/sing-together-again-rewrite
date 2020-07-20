@@ -1,7 +1,7 @@
 from flask import Flask, Response, url_for, request, render_template
-import encoding
-import pydub_helpers
-from model import *
+from . import encoding
+from .import pydub_helpers
+from .model import *
 
 app = Flask(__name__,
     static_folder = '../dist/static',
