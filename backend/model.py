@@ -19,8 +19,12 @@ database = model.RedisDatabase(
 class Room(model.RedisModel):
     database = database
 
+    title = model.StringField()
+    expiration = model.StringField()
+
     program = model.HashField()
     bulletin = model.StringField()
+
     index = model.StringField(default=-1)
     singing = model.StringField(default=0)
     users = model.SetField()
@@ -166,6 +170,9 @@ class Song(model.RedisModel):
 
     name = model.StringField()
     credits = model.StringField()
+
+    repeat_start = model.StringField()
+    repeat_end = model.StringField()
 
     first_half = model.StringField()
     second_half = model.StringField()

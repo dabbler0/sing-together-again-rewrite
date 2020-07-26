@@ -12,48 +12,60 @@ app = Flask(__name__,
 def index():
     return render_template('index.html')
 
-
-@app.route('/api/song-list')
-def list_songs():
-    song_pks = list(Song.collection())
-    return encoding.encode(
-        [Song(pk.decode('utf-8')).metadata() for pk in song_pks]
-    )
-
-@app.route('/api/new-song', methods=['POST'])
-def submit_new_song():
+def create_new_song(payload):
     payload = encoding.decode(request.data)
 
     # Interpret the audio clip as requested
     segment = pydub_helpers.read_arbitrary(payload['audio'], format=payload['format'])
-    segment = segment[payload['start-time']:payload['end-time']]
-
-    print('start time', payload['start-time'], 'end time', payload['end-time'])
-    print(len(segment))
+    segment = segment[payload['time'][0]:payload['time'][1]]
 
     # Create a new song entry
     song = Song()
 
     song.name.set(payload['name'])
     song.credits.set(payload['credits'])
+    song.repeat_start.set(payload['repeat'][0])
+    song.repeat_end.set(payload['repeat'][1])
     song.first_half.set(pydub_helpers.as_mp3(segment[:len(segment) // 2]))
     song.second_half.set(pydub_helpers.as_mp3(segment[len(segment) // 2:]))
 
-    return encoding.encode({'success': True, 'id': song.pk.get()})
+    return song
 
 @app.route('/api/create-room', methods=['POST'])
 def create_room():
-    bulletin = encoding.decode(request.data)
+    payload = encoding.decode(request.data)
 
     room = Room()
+
+    room.expiration.set(payload['expiration'])
+
+    room.title.set(payload['title'])
+    # room.password.set(payload['password']) # TODO any real password system
+
+    bulletin = []
+
+    for item in room['bulletin']:
+        bulletin_item = {
+            'title': item['title'],
+            'description': item['description']
+        }
+        if 'accompaniment' in item:
+            song = create_new_song(item['accompaniment'])
+            bulletin_item['accompaniment'] = {
+                'name': item['accompaniment']['name'],
+                'credits': item['accompaniment']['credits'],
+                'repeat': item['accompaniment']['repeat']
+                'id': song.pk.get()
+            }
 
     room.bulletin.set(encoding.encode(bulletin))
 
     for i, item in enumerate(bulletin):
-        room.program.hset(i, item['song'])
+        room.program.hset(i,
+            -1 if 'accompaniment' not in item else item['song']['id']
+        )
 
     return encoding.encode({'room_id': room.pk.get()})
-
 
 @app.route('/api/get-bulletin')
 def get_bulletin():
