@@ -153,8 +153,11 @@ export default {
           index: index,
           parity: parity
         }).then((response) => {
-          return this.context.decodeAudioData(response.audio.buffer)
-        }).then((buffer) => {
+          return Promise.all([
+            response.range,
+            this.context.decodeAudioData(response.audio.buffer)
+          ])
+        }).then(([range, buffer]) => {
           // Kick off the next schedule and also play the next
           // sound
           setTimeout(() => {
@@ -169,7 +172,7 @@ export default {
             this.context.currentTime) * 1000 - 2000)
 
           audio.playAudioBuffer(this.context, buffer, time)
-          return audio.recordAtTime(this.context, stream, time, time + buffer.duration)
+          return audio.recordAtTime(this.context, stream, time + range[0] / 1000, time + range[1] / 1000)
         }).then(([buffer, offset]) => {
           offset += this.$store.state.latency
 

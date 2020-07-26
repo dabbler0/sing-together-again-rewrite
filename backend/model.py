@@ -75,6 +75,16 @@ class Room(model.RedisModel):
         song_pk = self.program.hget(index).decode('utf-8')
         song = Song(song_pk)
 
+        repeat_range = [
+            int(song.first_range_start.get()),
+            int(song.first_range_end.get()),
+        ] if parity == 0 else [
+            int(song.second_range_start.get()),
+            int(song.second_range_end.get()),
+        ]
+
+        repeat_length = repeat_range[1] - repeat_range[0]
+
         if parity == 0:
             result = pydub_helpers.read_mp3(song.first_half.get())
         else:
@@ -91,8 +101,9 @@ class Room(model.RedisModel):
             attempt = user.get_audio(index, parity)
 
             if attempt is not None:
-                audio, offset = user.get_audio(index, parity)
-                result = result.overlay(audio, offset)
+                audio, offset = attempt
+                audio = audio[:repeat_length - offset]
+                result = result.overlay(audio, offset + repeat_range[0])
 
         return result
 

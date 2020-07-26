@@ -90,8 +90,8 @@ export default {
           this.name = accompaniment.name
           this.credits = accompaniment.credits
           this.format = accompaniment.format
-          this.timeRange = accompaniment.time
-          this.repeatRange = accompaniment.repeat
+          this.timeRange = accompaniment.time.map((x) => x / 1000)
+          this.repeatRange = accompaniment.repeat.map((x) => x / 1000)
 
           this.audioData = accompaniment.audio.buffer
           this.audioSrc = URL.createObjectURL(new Blob([
@@ -148,8 +148,8 @@ export default {
         name: this.name,
         format: this.format,
         credits: this.credits,
-        time: this.timeRange,
-        repeat: this.repeatRange,
+        time: this.timeRange.map((x) => Math.round(x * 1000)),
+        repeat: this.repeatRange.map((x) => Math.round(x * 1000)),
         audio: this.audioData
       })
 

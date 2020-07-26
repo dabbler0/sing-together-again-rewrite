@@ -24,8 +24,26 @@ def create_new_song(payload):
 
     song.name.set(payload['name'])
     song.credits.set(payload['credits'])
+
+    mid = len(segment) // 2
+
+    song.first_range_start.set(
+        min(payload['repeat'][0], mid)
+    )
+    song.first_range_end.set(
+        min(payload['repeat'][1], mid)
+    )
+
+    song.second_range_start.set(
+        max(payload['repeat'][0], mid)
+    )
+    song.second_range_end.set(
+        max(payload['repeat'][1], mid)
+    )
+
     song.repeat_start.set(payload['repeat'][0])
     song.repeat_end.set(payload['repeat'][1])
+
     song.first_half.set(pydub_helpers.as_mp3(segment[:len(segment) // 2]))
     song.second_half.set(pydub_helpers.as_mp3(segment[len(segment) // 2:]))
 
@@ -107,8 +125,18 @@ def get_mixed():
 
     room = Room(room_id)
 
+    song_pk = room.program.hget(index)
+    song = Song(song_pk)
+
     return encoding.encode({
         'audio': pydub_helpers.as_mp3(room.mix(index, parity, user_id))
+        'range': [
+            int(song.first_range_start.get()),
+            int(song.first_range_end.get())
+        ] if parity == 0 else [
+            int(song.second_range_start.get()),
+            int(song.second_range_end.get())
+        ]
     })
 
 @app.route('/api/submit-audio', methods=['POST'])
