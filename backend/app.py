@@ -72,7 +72,7 @@ def create_room():
             bulletin_item['accompaniment'] = {
                 'name': item['accompaniment']['name'],
                 'credits': item['accompaniment']['credits'],
-                'repeat': item['accompaniment']['repeat']
+                'repeat': item['accompaniment']['repeat'],
                 'id': song.pk.get()
             }
 
@@ -129,7 +129,7 @@ def get_mixed():
     song = Song(song_pk)
 
     return encoding.encode({
-        'audio': pydub_helpers.as_mp3(room.mix(index, parity, user_id))
+        'audio': pydub_helpers.as_mp3(room.mix(index, parity, user_id)),
         'range': [
             int(song.first_range_start.get()),
             int(song.first_range_end.get())
