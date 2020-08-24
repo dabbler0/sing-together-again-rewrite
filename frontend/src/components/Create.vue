@@ -157,8 +157,7 @@
 import CreatingBulletinElement from '@/components/CreatingBulletinElement'
 import AccompanimentMaker from '@/components/AccompanimentMaker'
 import RoomConfirmRenderer from '@/components/RoomConfirmRenderer'
-// import brq from '@/binaryRequests'
-// import encoding from '@/encoding'
+import brq from '@/binaryRequests'
 
 export default {
   name: 'Sing',
@@ -192,6 +191,11 @@ export default {
         'title': '',
         'accompaniment': null,
         'description': ''
+      })
+    },
+    finish () {
+      brq.post('/api/create-room', {}, this.room).then((response) => {
+        this.$router.push('/join/' + response.room_id)
       })
     }
   }

@@ -1,4 +1,5 @@
 from flask import Flask, Response, url_for, request, render_template
+from flask_talisman import Talisman
 from . import encoding
 from .import pydub_helpers
 from .model import *
@@ -8,13 +9,14 @@ app = Flask(__name__,
     template_folder = '../dist'
 )
 
+#Talisman(app)
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 def create_new_song(payload):
-    payload = encoding.decode(request.data)
-
+    print([key for key in payload])
     # Interpret the audio clip as requested
     segment = pydub_helpers.read_arbitrary(payload['audio'], format=payload['format'])
     segment = segment[payload['time'][0]:payload['time'][1]]
@@ -35,10 +37,10 @@ def create_new_song(payload):
     )
 
     song.second_range_start.set(
-        max(payload['repeat'][0], mid)
+        max(payload['repeat'][0], mid) - mid
     )
     song.second_range_end.set(
-        max(payload['repeat'][1], mid)
+        max(payload['repeat'][1], mid) - mid
     )
 
     song.repeat_start.set(payload['repeat'][0])
@@ -62,7 +64,7 @@ def create_room():
 
     bulletin = []
 
-    for item in room['bulletin']:
+    for item in payload['bulletin']:
         bulletin_item = {
             'title': item['title'],
             'description': item['description']
@@ -75,12 +77,13 @@ def create_room():
                 'repeat': item['accompaniment']['repeat'],
                 'id': song.pk.get()
             }
+        bulletin.append(bulletin_item)
 
     room.bulletin.set(encoding.encode(bulletin))
 
     for i, item in enumerate(bulletin):
         room.program.hset(i,
-            -1 if 'accompaniment' not in item else item['song']['id']
+            -1 if 'accompaniment' not in item else item['accompaniment']['id']
         )
 
     return encoding.encode({'room_id': room.pk.get()})
@@ -91,7 +94,7 @@ def get_bulletin():
 
     room = Room(room_id)
 
-    return room.bulletin.get().decode('utf-8')
+    return room.bulletin.get()
 
 @app.route('/api/start-song')
 def set_index():
@@ -125,7 +128,7 @@ def get_mixed():
 
     room = Room(room_id)
 
-    song_pk = room.program.hget(index)
+    song_pk = room.program.hget(index).decode('utf-8')
     song = Song(song_pk)
 
     return encoding.encode({
@@ -146,6 +149,8 @@ def submit_audio():
     parity = int(request.args['parity'])
     payload = encoding.decode(request.data)
 
+    print('Got audio submission', user_id, index, parity)
+
     user = User(user_id)
     user.update_audio(index, parity,
             pydub_helpers.read_opus(payload['audio']), payload['offset'])
@@ -155,9 +160,10 @@ def submit_audio():
 @app.route('/api/heartbeat')
 def heartbeat():
     user_id = request.args['user_id']
+    current_index = request.args['current_index']
 
     user = User(user_id)
-    user.heartbeat()
+    user.heartbeat(current_index)
 
     room_id = user.room.get().decode('utf-8')
     room = Room(room_id)
@@ -193,7 +199,7 @@ def download_audio():
         song.second_half.get()
     )
 
-    return Response(as_mp3(segment_0 + segment_1), mimetype='audio/mpeg')
+    return Response(pydub_helpers.as_mp3(segment_0 + segment_1), mimetype='audio/mpeg')
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)

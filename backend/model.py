@@ -92,9 +92,10 @@ class Room(model.RedisModel):
 
         for user_pk in self.users.smembers():
             user_pk = user_pk.decode('utf-8')
+            print('processing user', user_pk)
 
-            if user_pk == exclude_user_pk:
-                continue
+            #if user_pk == exclude_user_pk:
+            #    continue
 
             user = User(user_pk)
 
@@ -145,6 +146,9 @@ class Room(model.RedisModel):
                 index = int(key.split('-')[0])
 
                 if index not in wanted_indices:
+                    sfile = File(user.clips.hget(key).decode('utf-8'))
+                    sfile.delete()
+
                     user.clips.hdel(key)
 
     def get_bulletin(self):
@@ -157,6 +161,7 @@ class Room(model.RedisModel):
             'singing': self.singing.get().decode('utf-8') == '1',
             'index': int(self.index.get().decode('utf-8')),
             'users': self.get_users()
+
         }
 
     def stop_singing(self):
@@ -181,6 +186,11 @@ class Song(model.RedisModel):
 
     name = model.StringField()
     credits = model.StringField()
+
+    first_range_start = model.StringField()
+    first_range_end = model.StringField()
+    second_range_start = model.StringField()
+    second_range_end = model.StringField()
 
     repeat_start = model.StringField()
     repeat_end = model.StringField()
@@ -212,11 +222,12 @@ class User(model.RedisModel):
             'name': self.name.get().decode('utf-8')
         }
 
-    def heartbeat(self):
+    def heartbeat(self, current_index):
         '''
         Indicate that this user has been active recently.
         '''
         self.last_active.set(int(time.time() * 1000))
+        self.wants_index.set(current_index)
 
     def update_audio(self, index, parity, audio, offset):
         '''
@@ -231,6 +242,8 @@ class User(model.RedisModel):
         returns: None
         '''
 
+        print('UPDATING AUDIO', index, parity, len(audio), offset)
+
         key = '%d-%d' % (index, parity)
         if self.clips.hexists(key):
             sfile = File(self.clips.hget(key).decode('utf-8'))
@@ -239,6 +252,7 @@ class User(model.RedisModel):
             sfile = File()
 
             self.clips.hset(key, sfile.pk.get())
+            print('CREATED KEY', key, 'VALUE IS', sfile.pk.get())
 
         # If offset is positive, that means
         # recording started BEFORE the true beginning.
@@ -262,6 +276,7 @@ class User(model.RedisModel):
         key = '%d-%d' % (index, parity)
 
         if not self.clips.hexists(key):
+            print('NO KEY', key)
             return None
         
         sfile = File(self.clips.hget(key).decode('utf-8'))
@@ -272,7 +287,7 @@ class User(model.RedisModel):
 
         return (
             pydub_helpers.read_mp3(result['audio']),
-            offset
+            result['offset']
         )
 
     def close(self):
