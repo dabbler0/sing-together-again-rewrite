@@ -9,7 +9,7 @@ app = Flask(__name__,
     template_folder = '../dist'
 )
 
-#Talisman(app)
+Talisman(app)
 
 @app.route('/')
 def index():
