@@ -107,6 +107,7 @@ export default {
       'advanceMessage': 'Begin service',
 
       'index': -1,
+      'playingIndex': -1,
       'userId': ''
     }
   },
@@ -120,6 +121,9 @@ export default {
     }
   },
   created () {
+    window.setLatency = (latency) => {
+      this.$store.commit('setLatency', latency)
+    }
     // Asynchronously also get songs
 
     audio.getMediaStream().then((stream) => {
@@ -171,10 +175,14 @@ export default {
           }, (time + buffer.duration -
             this.context.currentTime) * 1000 - 2000)
 
+          this.playingIndex = index
+
           audio.playAudioBuffer(this.context, buffer, time)
           return audio.recordAtTime(this.context, stream, time + range[0] / 1000, time + range[1] / 1000)
         }).then(([buffer, offset]) => {
           offset += this.$store.state.latency
+
+          console.log(offset)
 
           return brq.post('/api/submit-audio', {
             'user_id': this.userId,
@@ -182,7 +190,7 @@ export default {
             'parity': parity
           }, {
             'audio': buffer,
-            'offset': offset
+            'offset': Math.round(offset * 1000)
           })
         })
       }
@@ -191,7 +199,8 @@ export default {
       // every 1.5 seconds
       const heartbeat = () => {
         brq.get('/api/heartbeat', {
-          'user_id': this.userId
+          'user_id': this.userId,
+          'current_index': this.playingIndex
         }).then((response) => {
           this.singing = response.singing
           this.index = response.index
