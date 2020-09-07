@@ -29,7 +29,7 @@
               <v-range-slider
                 thumb-label
                 v-model="timeRange"
-                v-on:end="reclip()"
+                v-on:change="reclip()"
                 step="0.01"
                 min="0"
                 :max="fullDuration"></v-range-slider>
@@ -38,7 +38,6 @@
               <v-range-slider
                 thumb-label
                 v-model="repeatRange"
-                v-on:end="reclip()"
                 step="0.01"
                 min="0"
                 :max="fullDuration"></v-range-slider>
@@ -47,7 +46,7 @@
               <!--<v-btn color="primary" large>Add to Service</v-btn>-->
 
             <v-btn @click="togglePreview()" large>
-              <span v-if="previewing">Stop </span> Preview</v-btn>
+              <span v-if="previewing">Stop&nbsp;</span> Preview</v-btn>
             <v-btn color="success" @click="download()" class="ml-5" large>Download</v-btn>
           </v-form>
         </div>
@@ -66,9 +65,12 @@ export default {
       name: '',
       credits: '',
       timeRange: [0, 0],
+      lastReclippedStartTime: 0,
+      lastReclippedEndTime: 0,
       repeatRange: [0, 0],
       fullDuration: 0,
       audioData: null,
+      audioBuffer: null,
       audioSrc: '',
       previewing: false,
       hasFile: false,
@@ -76,16 +78,17 @@ export default {
     }
   },
   props: ['context'],
+  created () {
+    window.encoding = encoding
+  },
   methods: {
     processFile (file) {
-      console.log('processing file', file)
-
       const fileName = file.name
       const fileFormat = fileName.substr(fileName.indexOf('.') + 1)
 
       if (fileFormat === 'accompaniment') {
         file.arrayBuffer().then((buffer) => {
-          const accompaniment = encoding.decode(new Int8Array(buffer))
+          const accompaniment = encoding.decode(new Uint8Array(buffer))
 
           this.name = accompaniment.name
           this.credits = accompaniment.credits
@@ -93,13 +96,17 @@ export default {
           this.timeRange = accompaniment.time.map((x) => x / 1000)
           this.repeatRange = accompaniment.repeat.map((x) => x / 1000)
 
-          this.audioData = accompaniment.audio.buffer
+          this.audioData = accompaniment.audio.buffer.slice(
+            accompaniment.audio.byteOffset,
+            accompaniment.audio.byteOffset + accompaniment.audio.byteLength
+          )
           this.audioSrc = URL.createObjectURL(new Blob([
-            accompaniment.audio.buffer
+            this.audioData
           ]))
 
-          this.context.decodeAudioData(accompaniment.audio.buffer).then((audioBuffer) => {
+          this.context.decodeAudioData(this.audioData.slice(0)).then((audioBuffer) => {
             this.fullDuration = audioBuffer.duration
+            this.audioBuffer = audioBuffer
 
             this.hasFile = true
           })
@@ -113,7 +120,9 @@ export default {
           this.audioData = buffer.slice(0)
           return this.context.decodeAudioData(buffer)
         }).then((audioBuffer) => {
+          this.audioBuffer = audioBuffer
           this.timeRange = [0, audioBuffer.duration]
+          this.lastReclippedEndTIme = audioBuffer.duration
           this.repeatRange = [0, audioBuffer.duration]
           this.fullDuration = audioBuffer.duration
           this.hasFile = true
@@ -121,21 +130,39 @@ export default {
       }
     },
 
+    reclip () {
+      if (this.repeatRange[0] === this.lastReclippedStartTime) {
+        this.repeatRange[0] = this.timeRange[0]
+      }
+
+      this.repeatRange[0] = Math.max(this.repeatRange[0], this.timeRange[0])
+
+      if (this.repeatRange[1] === this.lastReclippedEndTime) {
+        this.repeatRange[1] = this.timeRange[1]
+      }
+
+      this.repeatRange[1] = Math.min(this.repeatRange[1], this.timeRange[1])
+
+      this.$set(this.repeatRange, 0, this.repeatRange[0])
+      this.$set(this.repeatRange, 1, this.repeatRange[1])
+
+      this.lastReclippedStartTime = this.timeRange[0]
+      this.lastReclippedEndTime = this.timeRange[1]
+    },
+
     togglePreview () {
       if (this.previewing) {
-        this.previewSource.stop()
+        this.sourceNode.stop()
         this.previewing = false
       } else {
-        this.context.decodeAudiOData(this.audioData).then((audioBuffer) => {
-          this.sourceNode = this.context.createBufferSource()
-          this.sourceNode.buffer = audioBuffer
-          this.sourceNode.loop = true
-          this.sourceNode.loopStart = this.timeRange[0]
-          this.sourceNode.loopEnd = this.timeRange[1]
-          this.sourceNode.connect(this.context.destination)
-          this.sourceNode.start()
-          this.previewing = true
-        })
+        this.sourceNode = this.context.createBufferSource()
+        this.sourceNode.buffer = this.audioBuffer
+        this.sourceNode.loop = true
+        this.sourceNode.loopStart = this.timeRange[0]
+        this.sourceNode.loopEnd = this.timeRange[1]
+        this.sourceNode.connect(this.context.destination)
+        this.sourceNode.start(0, this.timeRange[0])
+        this.previewing = true
       }
     },
 
