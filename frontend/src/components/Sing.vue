@@ -149,7 +149,8 @@ export default {
         this.schedulers[index] = true
 
         // Nothing to do if we are not actually singing anything
-        if (index < 0 || this.bulletin[index].song < 0) return
+        if ((!this.singing && parity === 0) ||
+          index < 0 || this.bulletin[index].song < 0) return
 
         brq.get('/api/get-mixed', {
           room_id: this.roomId,

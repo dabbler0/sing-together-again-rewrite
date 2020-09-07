@@ -21,6 +21,11 @@ def create_new_song(payload):
     segment = pydub_helpers.read_arbitrary(payload['audio'], format=payload['format'])
     segment = segment[payload['time'][0]:payload['time'][1]]
 
+    repeat = (
+        payload['repeat'][0] - payload['time'][0],
+        payload['repeat'][1] - payload['time'][0]
+    )
+
     # Create a new song entry
     song = Song()
 
@@ -30,17 +35,17 @@ def create_new_song(payload):
     mid = len(segment) // 2
 
     song.first_range_start.set(
-        min(payload['repeat'][0], mid)
+        min(repeat[0], mid)
     )
     song.first_range_end.set(
-        min(payload['repeat'][1], mid)
+        min(repeat[1], mid)
     )
 
     song.second_range_start.set(
-        max(payload['repeat'][0], mid) - mid
+        max(repeat[0], mid) - mid
     )
     song.second_range_end.set(
-        max(payload['repeat'][1], mid) - mid
+        max(repeat[1], mid) - mid
     )
 
     song.repeat_start.set(payload['repeat'][0])
