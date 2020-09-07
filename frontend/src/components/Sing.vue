@@ -157,7 +157,7 @@ export default {
           user_id: this.userId,
           index: index,
           parity: parity
-        }).then((response) => {
+        }, true).then((response) => {
           return Promise.all([
             response.range,
             this.context.decodeAudioData(response.audio.buffer)
@@ -183,8 +183,6 @@ export default {
         }).then(([buffer, offset]) => {
           offset += this.$store.state.latency
 
-          console.log(offset)
-
           return brq.post('/api/submit-audio', {
             'user_id': this.userId,
             'index': index,
@@ -192,7 +190,7 @@ export default {
           }, {
             'audio': buffer,
             'offset': Math.round(offset * 1000)
-          })
+          }, true)
         })
       }
 
@@ -202,7 +200,7 @@ export default {
         brq.get('/api/heartbeat', {
           'user_id': this.userId,
           'current_index': this.playingIndex
-        }).then((response) => {
+        }, true).then((response) => {
           this.singing = response.singing
           this.index = response.index
           this.users = response.users

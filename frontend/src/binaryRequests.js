@@ -9,7 +9,7 @@ function formatQs (data) {
 
   return '?' + components.join('&')
 }
-function get (url, data) {
+function get (url, data, retry) {
   const q = new XMLHttpRequest()
   q.open('GET', url +
     formatQs(data), true)
@@ -17,18 +17,35 @@ function get (url, data) {
   q.responseType = 'arraybuffer'
 
   return new Promise((resolve, reject) => {
+    function rejectOrRetry (error) {
+      if (retry) {
+        resolve(get(url, data, retry))
+      } else {
+        reject(error)
+      }
+    }
+
     q.addEventListener('load', () => {
-      resolve(encoding.decode(
-        new Uint8Array(q.response)))
+      if (q.status === 200) {
+        try {
+          resolve(encoding.decode(
+            new Uint8Array(q.response)))
+        } catch (e) {
+          rejectOrRetry(new Error('Invalid server response'))
+        }
+      } else {
+        rejectOrRetry(new Error('Server response status was ' + q.status))
+      }
     })
 
-    q.addEventListener('error', reject)
+    q.addEventListener('error', rejectOrRetry)
+    q.addEventListener('abort', rejectOrRetry)
 
     q.send()
   })
 }
 
-function post (url, qsData, postData) {
+function post (url, qsData, postData, retry) {
   const q = new XMLHttpRequest()
   q.open('POST', url +
     formatQs(qsData), true)
@@ -36,11 +53,28 @@ function post (url, qsData, postData) {
   q.responseType = 'arraybuffer'
 
   return new Promise((resolve, reject) => {
+    function rejectOrRetry (error) {
+      if (retry) {
+        resolve(post(url, qsData, postData, retry))
+      } else {
+        reject(error)
+      }
+    }
+
     q.addEventListener('load', () => {
-      resolve(encoding.decode(
-        new Uint8Array(q.response)))
+      if (q.status === 200) {
+        try {
+          resolve(encoding.decode(
+            new Uint8Array(q.response)))
+        } catch (e) {
+          rejectOrRetry(new Error('Invalid server response'))
+        }
+      } else {
+        rejectOrRetry(new Error('Server response status was ' + q.status))
+      }
     })
-    q.addEventListener('error', reject)
+    q.addEventListener('error', rejectOrRetry)
+    q.addEventListener('abort', rejectOrRetry)
     q.send(new Blob([encoding.encode(postData).buffer]))
   })
 }

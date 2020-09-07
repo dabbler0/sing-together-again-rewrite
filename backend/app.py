@@ -154,8 +154,6 @@ def submit_audio():
     parity = int(request.args['parity'])
     payload = encoding.decode(request.data)
 
-    print('Got audio submission', user_id, index, parity)
-
     user = User(user_id)
     user.update_audio(index, parity,
             pydub_helpers.read_opus(payload['audio']), payload['offset'])
