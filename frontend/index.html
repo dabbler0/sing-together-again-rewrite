@@ -6,6 +6,13 @@
     <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css" rel="stylesheet">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Sing Together Again</title>
+    <script>
+      // TODO: this is not a security measure; it's to make sure the client is allowed
+      // to use a microphone. It's worth using real HSTS in the future for actual
+      // security purposes.
+      if (location.protocol !== 'https:')
+        location.replace('https:' + location.href.substring(location.protocol.length));
+    </script>
   </head>
   <body>
     <div id="app"></div>

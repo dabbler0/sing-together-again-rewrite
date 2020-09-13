@@ -165,9 +165,18 @@ def submit_audio():
 @app.route('/api/heartbeat')
 def heartbeat():
     user_id = request.args['user_id']
+    room_id = request.args['room_id']
+    name = request.args['name']
     current_index = request.args['current_index']
 
     user = User(user_id)
+
+    # Make sure that this user really belongs to this room.
+    # If it doesn't, join a new user to this room
+
+    if (user.room.get() != room_id):
+        user = room.new_user(name)
+
     user.heartbeat(current_index)
 
     room_id = user.room.get().decode('utf-8')
@@ -177,9 +186,12 @@ def heartbeat():
     # or different parts of cleanup at different times?
     room.cleanup()
 
-    print('responding with', room.get_state())
-
-    return encoding.encode(room.get_state())
+    return encoding.encode({
+        'heart': {
+            'user_id': user.pk.get()
+        },
+        'room_data': room.get_state()
+    })
 
 @app.route('/api/stop-song')
 def stop_song():

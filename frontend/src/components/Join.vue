@@ -12,7 +12,7 @@
           sm="8"
           md="4"
         >
-        <JoinInsert @submit="(roomId, name) => join(roomId, name)" @cancel="$router.push('/')"></JoinInsert>
+        <JoinInsert @submit="(roomId, name, options) => join(roomId, name, options)" @cancel="$router.push('/')"></JoinInsert>
         </v-col>
       </v-row>
     </v-container>
@@ -31,9 +31,9 @@ export default {
   },
   components: {JoinInsert},
   methods: {
-    join (roomId, name) {
+    join (roomId, name, { hearSelf, leader }) {
       this.$router.push(
-        '/calibrate/' + roomId + '/' + encodeURIComponent(name)
+        '/calibrate/' + roomId + '/' + encodeURIComponent(name) + '?hear_self=' + hearSelf + '&leader=' + leader
       )
     }
   }
