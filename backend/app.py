@@ -168,6 +168,7 @@ def heartbeat():
     current_index = request.args['current_index']
 
     user = User(user_id)
+    room = Room(room_id)
 
     # Make sure that this user really belongs to this room.
     # If it doesn't, join a new user to this room
@@ -176,9 +177,6 @@ def heartbeat():
         user = room.new_user(name)
 
     user.heartbeat(current_index)
-
-    room_id = user.room.get().decode('utf-8')
-    room = Room(room_id)
 
     # TODO potentially handle cleanup at a different time,
     # or different parts of cleanup at different times?
