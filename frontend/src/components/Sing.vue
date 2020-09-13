@@ -199,11 +199,14 @@ export default {
       const heartbeat = () => {
         brq.get('/api/heartbeat', {
           'user_id': this.userId,
+          'name': this.name,
+          'room_id': this.roomId,
           'current_index': this.playingIndex
-        }, true).then((response) => {
-          this.singing = response.singing
-          this.index = response.index
-          this.users = response.users
+        }, true).then(({ heart, room_data: roomData }) => {
+          this.userId = heart['user_id']
+          this.singing = roomData.singing
+          this.index = roomData.index
+          this.users = roomData.users
 
           if (this.singing) {
             this.advanceMessage = 'Stop singing'
