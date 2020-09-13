@@ -167,8 +167,12 @@ def heartbeat():
     name = request.args['name']
     current_index = request.args['current_index']
 
-    user = User(user_id)
     room = Room(room_id)
+
+    try:
+        user = User(user_id)
+    except Exception as e:
+        user = User(room.new_user(name))
 
     # Make sure that this user really belongs to this room.
     # If it doesn't, join a new user to this room
