@@ -172,12 +172,14 @@ def heartbeat():
     try:
         user = User(user_id)
     except Exception as e:
+        print('Couldn\'t fetch user, so making new one')
         user = User(room.new_user(name))
 
     # Make sure that this user really belongs to this room.
     # If it doesn't, join a new user to this room
 
-    if (user.room.get() != room_id):
+    if (user.room.get().decode('utf-8') != room_id):
+        print('User room is wrong', user.room.get(), room_id, 'so making new one')
         user = User(room.new_user(name))
 
     user.heartbeat(current_index)
