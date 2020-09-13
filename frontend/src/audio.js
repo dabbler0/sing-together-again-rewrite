@@ -78,6 +78,8 @@ function recordAtTime (context, stream, startTime, endTime) {
     function beginRecording () {
       const recorder = recordMedia(stream)
 
+      console.log('Wanted to start recording at', startTime, 'and it is', context.currentTime)
+
       resolve(Promise.all([recorder.data, startTime - context.currentTime]))
 
       setTimeout(

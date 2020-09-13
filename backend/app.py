@@ -128,6 +128,7 @@ def join_room():
 def get_mixed():
     room_id = request.args['room_id']
     user_id = request.args['user_id']
+    hearme = (request.args['hearme'] == 'true')
     index = int(request.args['index'])
     parity = int(request.args['parity'])
 
@@ -137,7 +138,7 @@ def get_mixed():
     song = Song(song_pk)
 
     return encoding.encode({
-        'audio': pydub_helpers.as_mp3(room.mix(index, parity, user_id)),
+        'audio': pydub_helpers.as_mp3(room.mix(index, parity, (-1 if hearme else user_id))),
         'range': [
             int(song.first_range_start.get()),
             int(song.first_range_end.get())

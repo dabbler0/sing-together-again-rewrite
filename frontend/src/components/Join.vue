@@ -31,9 +31,9 @@ export default {
   },
   components: {JoinInsert},
   methods: {
-    join (roomId, name, { hearSelf, leader }) {
+    join (roomId, name) {
       this.$router.push(
-        '/calibrate/' + roomId + '/' + encodeURIComponent(name) + '?hear_self=' + hearSelf + '&leader=' + leader
+        '/calibrate/' + roomId + '/' + encodeURIComponent(name)
       )
     }
   }

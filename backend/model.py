@@ -94,8 +94,8 @@ class Room(model.RedisModel):
             user_pk = user_pk.decode('utf-8')
             print('processing user', user_pk)
 
-            #if user_pk == exclude_user_pk:
-            #    continue
+            if user_pk == exclude_user_pk:
+                continue
 
             user = User(user_pk)
 
@@ -260,6 +260,9 @@ class User(model.RedisModel):
         if offset > 0:
             audio = audio[offset:]
             offset = 0
+
+        # If offset was negative, make it positive
+        offset = abs(offset)
 
         sfile.data.set(encoding.encode({
             'offset': offset,

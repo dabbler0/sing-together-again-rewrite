@@ -76,7 +76,9 @@
             <v-divider></v-divider>
 
             <v-card-actions class="justify-center indigo white--text" style="position: absolute; bottom:0; left: 0; right: 0">
-              <v-btn v-on:click="advance()">{{advanceMessage}}</v-btn>
+              <div v-if="$store.state.leader">
+                <v-btn v-on:click="advance()">{{advanceMessage}}</v-btn>
+              </div>
             </v-card-actions>
           </v-card>
         </v-col>
@@ -155,6 +157,7 @@ export default {
         brq.get('/api/get-mixed', {
           room_id: this.roomId,
           user_id: this.userId,
+          hearme: this.$store.state.hearme,
           index: index,
           parity: parity
         }, true).then((response) => {
@@ -218,7 +221,7 @@ export default {
           // If we are not singing the song that
           // everyone else is singing, start doing so.
           if (!this.schedulers[this.index]) {
-            scheduleNext(this.index, 0, this.context.currentTime)
+            scheduleNext(this.index, 0, this.context.currentTime + 1.5)
           }
 
           setTimeout(heartbeat, 1500)
