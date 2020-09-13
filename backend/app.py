@@ -174,7 +174,7 @@ def heartbeat():
     # If it doesn't, join a new user to this room
 
     if (user.room.get() != room_id):
-        user = room.new_user(name)
+        user = User(room.new_user(name))
 
     user.heartbeat(current_index)
 
