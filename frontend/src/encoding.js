@@ -46,6 +46,7 @@ function encodeInt (n, appendable) {
   if (n === 0) {
     appendable.appendInt(0)
   } else {
+    appendable.appendInt(1)
     appendable.appendInt(n % 256)
     encodeInt(n >> 8, appendable)
   }
@@ -55,6 +56,7 @@ function consumeInt (index, array) {
   let result = 0
   let factor = 0
   while (array[index] !== 0) {
+    index += 1
     result = result + (array[index] << 8 * factor)
     factor += 1
     index += 1

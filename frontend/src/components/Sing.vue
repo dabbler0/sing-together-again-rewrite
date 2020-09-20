@@ -177,7 +177,9 @@ export default {
               this.schedulers[index] = false
             }
           }, (time + buffer.duration -
-            this.context.currentTime) * 1000 - 2000)
+            this.context.currentTime) * 1000 / 2)
+          // Assume everyone will have submitted by
+          // about halfway to the next beat.
 
           this.playingIndex = index
 

@@ -19,6 +19,7 @@ function get (url, data, retry) {
   return new Promise((resolve, reject) => {
     function rejectOrRetry (error) {
       if (retry) {
+        console.log('Retrying due to error', error)
         resolve(get(url, data, retry))
       } else {
         reject(error)
@@ -31,7 +32,7 @@ function get (url, data, retry) {
           resolve(encoding.decode(
             new Uint8Array(q.response)))
         } catch (e) {
-          rejectOrRetry(new Error('Invalid server response'))
+          rejectOrRetry(new Error('Invalid server response ' + e.toString()))
         }
       } else {
         rejectOrRetry(new Error('Server response status was ' + q.status))

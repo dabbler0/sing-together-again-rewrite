@@ -3,6 +3,7 @@ import time
 from . import encoding
 from . import pydub_helpers
 from urllib.parse import urlparse
+import math
 import os
 
 url = os.environ.get('REDIS_URL')
@@ -90,6 +91,26 @@ class Room(model.RedisModel):
         else:
             result = pydub_helpers.read_mp3(song.second_half.get())
 
+        # Count how many things we will overlay
+        overlays = 1
+        for user_pk in self.users.smembers():
+            user_pk = user_pk.decode('utf-8')
+
+            if user_pk == exclude_user_pk:
+                continue
+
+            user = User(user_pk)
+
+            attempt = user.get_audio(index, parity)
+
+            if attempt is not None:
+                overlays += 1
+
+        # Turn down the volume by an appropriate amount
+        gain = -math.log(overlays, 10 ** 0.1)
+        print('Applying gain', gain)
+
+        # Overlay them, with a gain
         for user_pk in self.users.smembers():
             user_pk = user_pk.decode('utf-8')
             print('processing user', user_pk)
@@ -103,7 +124,7 @@ class Room(model.RedisModel):
 
             if attempt is not None:
                 audio, offset = attempt
-                audio = audio[:repeat_length - offset]
+                audio = audio[:repeat_length - offset].apply_gain(gain)
                 result = result.overlay(audio, offset + repeat_range[0])
 
         return result

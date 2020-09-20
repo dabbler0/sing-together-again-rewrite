@@ -18,12 +18,13 @@ def encode_int(n):
     if n == 0:
         return b'\x00'
     else:
-        return bytes([n % 256]) + encode_int(n // 256)
+        return b'\x01' + bytes([n % 256]) + encode_int(n // 256)
 
 def consume_int(index, bstring):
     result = 0
     factor = 1
     while bstring[index] != 0:
+        index += 1
         result += bstring[index] * factor
         factor *= 256
         index += 1
