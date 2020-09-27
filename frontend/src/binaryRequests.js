@@ -19,8 +19,9 @@ function get (url, data, retry) {
   return new Promise((resolve, reject) => {
     function rejectOrRetry (error) {
       if (retry) {
-        console.log('Retrying due to error', error)
-        resolve(get(url, data, retry))
+        setTimeout(() => {
+          resolve(get(url, data, retry))
+        }, 100)
       } else {
         reject(error)
       }
@@ -56,7 +57,9 @@ function post (url, qsData, postData, retry) {
   return new Promise((resolve, reject) => {
     function rejectOrRetry (error) {
       if (retry) {
-        resolve(post(url, qsData, postData, retry))
+        setTimeout(() => {
+          resolve(post(url, qsData, postData, retry))
+        }, 100)
       } else {
         reject(error)
       }
