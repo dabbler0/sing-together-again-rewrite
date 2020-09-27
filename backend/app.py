@@ -159,13 +159,12 @@ def submit_audio():
         user = User(user_id)
         user.update_audio(index, parity,
                 pydub_helpers.read_opus(payload['audio']), payload['offset'])
-    except Exception as e:
-        print('Couldn\'t fetch user, so making new one')
-        user = User(room.new_user(name))
-        user.update_audio(index, parity,
-                pydub_helpers.read_opus(payload['audio']), payload['offset'])
 
-    return encoding.encode({'success': True})
+        return encoding.encode({'success': True})
+
+    except Exception as e:
+        return encoding.encode({'success': False})
+
 
 @app.route('/api/heartbeat')
 def heartbeat():
