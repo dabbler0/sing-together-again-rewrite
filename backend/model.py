@@ -110,6 +110,8 @@ class Room(model.RedisModel):
         gain = -math.log(overlays, 10 ** 0.1)
         print('Applying gain', gain)
 
+        result = result.apply_gain(gain)
+
         # Overlay them, with a gain
         for user_pk in self.users.smembers():
             user_pk = user_pk.decode('utf-8')

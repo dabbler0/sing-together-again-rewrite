@@ -21,7 +21,7 @@ function get (url, data, retry) {
       if (retry) {
         setTimeout(() => {
           resolve(get(url, data, retry))
-        }, 100)
+        }, 500)
       } else {
         reject(error)
       }
@@ -59,7 +59,7 @@ function post (url, qsData, postData, retry) {
       if (retry) {
         setTimeout(() => {
           resolve(post(url, qsData, postData, retry))
-        }, 100)
+        }, 500)
       } else {
         reject(error)
       }
