@@ -17,13 +17,36 @@
             <v-spacer></v-spacer>
             <v-card-text>
               <div v-if="!finished">
-              Hold your headphones up to your microphone and click "calibrate". This will take about 15 seconds.
+                Hold your headphones up to your microphone and click "calibrate". This will take somewhere between 5 and 20 seconds.<br/><br/>
+                Or, if you've done this before (with these same headphones and computer) and remember a previous audio latency value that worked well, you can enter it manually.
               </div>
               <div v-if="finished">
-              We estimate your audio latency to be around {{$store.state.latency.toPrecision(3)}} seconds. Click "continue", or, if something went wrong, hold your headphones up to your micrphone and click "recalibrate".
+              We estimate your audio latency to be around {{$store.state.latency.toPrecision(3)}} seconds. Click "continue", or, if something went wrong, hold your headphones up to your microphone and click "recalibrate".
               </div>
+
+              <br/><br/>
               <v-spacer></v-spacer>
-              <v-btn v-on:click="calibrate()" color="primary" large>{{(finished? 'Recalibrate' : 'Calibrate')}}</v-btn>
+
+              <div v-if="manualSet">
+                <div>
+                  <v-text-field
+                    label="Audio latency"
+                    v-model="manualValue"
+                    type="text"
+                  >
+                  </v-text-field>
+                </div>
+                <v-btn v-on:click="cancelManualEntry()" large>Cancel</v-btn>
+                <v-btn
+                    v-on:click="finishManualEntry()"
+                    color="primary"
+                    :disabled="!(manualValue.length > 0)"
+                    large>Continue</v-btn>
+              </div>
+              <div v-if="!manualSet">
+                <v-btn v-on:click="calibrate()" color="primary" large>{{(finished? 'Recalibrate' : 'Calibrate')}}</v-btn>
+                <v-btn v-on:click="manualEntry()" large>Enter Manually</v-btn>
+              </div>
             </v-card-text>
             <v-card-actions class="justify-center">
               <v-btn to="/join" large>Back</v-btn>
@@ -41,6 +64,10 @@
 <script>
 import audio from '@/audio'
 
+function median (arr) {
+  return arr.sort()[Math.floor(arr.length / 2)]
+}
+
 export default {
   name: 'Calibrate',
   props: ['context'],
@@ -49,24 +76,42 @@ export default {
       'measurements': [],
       'room': this.$route.params.room,
       'user': this.$route.params.user,
-      'finished': false
+      'finished': false,
+      'manualValue': '',
+      'manualSet': false
     }
   },
   methods: {
-    calibrate () {
+    async calibrate () {
       this.measurements = []
-      let p = Promise.resolve(-1)
-      for (let i = 0; i < 9; i++) {
-        p = p.then((data) => {
-          if (data > 0) this.measurements.push(data)
-          return audio.measureLatency(this.context)
-        })
+      for (let i = 0; i < 20; i++) {
+        this.measurements.push(await audio.measureLatency(this.context))
+
+        const medianMeasurement = median(this.measurements)
+
+        // If at least 5 samples are approximately equal to each other and the median,
+        // we can stop immediately. Otherwise, continue.
+        if (this.measurements.filter((x) => Math.abs(x -
+            medianMeasurement) < 0.015).length >= 5) {
+          break
+        }
       }
-      p.then((data) => {
-        this.measurements.push(data)
-        this.$store.commit('setLatency', this.measurements.sort()[4])
-        this.finished = true
-      })
+
+      this.$store.commit('setLatency', median(this.measurements))
+      this.finished = true
+    },
+
+    manualEntry () {
+      this.manualSet = true
+    },
+
+    cancelManualEntry () {
+      this.manualSet = false
+    },
+
+    finishManualEntry () {
+      this.$store.commit('setLatency', Number(this.manualValue))
+      this.$router.push('/sing/' + this.room + '/' + this.user)
     }
   }
 }
