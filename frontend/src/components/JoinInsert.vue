@@ -42,11 +42,7 @@
 
     <v-card-actions class="justify-center">
       <v-btn v-on:click="$emit('cancel')" large>Back</v-btn>
-<<<<<<< Updated upstream
-      <v-btn color="primary" v-on:click="$emit('submit', roomId, name, { hearSelf, leader })" large>Join</v-btn>
-=======
       <v-btn color="primary" v-on:click="updateSingSettingsAndEmit()" large>Join</v-btn>
->>>>>>> Stashed changes
     </v-card-actions>
   </v-card>
 </template>
