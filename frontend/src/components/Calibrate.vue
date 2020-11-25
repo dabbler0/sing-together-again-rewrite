@@ -81,6 +81,12 @@ export default {
       'manualSet': false
     }
   },
+  // Skip calibration if no headphones
+  created () {
+    if (!this.$store.state.headphones) {
+      this.$router.push('/sing/' + this.room + '/' + this.user)
+    }
+  },
   methods: {
     async calibrate () {
       this.measurements = []

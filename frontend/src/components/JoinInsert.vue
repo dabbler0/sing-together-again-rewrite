@@ -29,8 +29,8 @@
         </v-text-field>
 
         <v-checkbox
-          v-model="hearme"
-          label="Hear myself"
+          v-model="headphones"
+          label="I have headphones"
           type="text"></v-checkbox>
 
         <v-checkbox
@@ -54,7 +54,8 @@ export default {
     return {
       roomId: (this.$route.params.hasOwnProperty('prefill') ? this.$route.params.prefill : ''),
       name: '',
-      hearme: false,
+      headphones: true,
+      hearme: (this.$route.query.debug === 'true'),
       leader: false,
       nameErrorMessage: false,
       roomErrorMessage: false
@@ -72,6 +73,7 @@ export default {
         return
       }
 
+      this.$store.commit('setHeadphones', this.headphones)
       this.$store.commit('setHearme', this.hearme)
       this.$store.commit('setLeader', this.leader)
       this.$emit('submit', this.roomId, this.name)

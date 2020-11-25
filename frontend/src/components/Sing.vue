@@ -132,7 +132,7 @@ export default {
       // Populate the bulletin
       brq.get('/api/get-bulletin', {
         'room_id': this.roomId
-      }).then((response) => {
+      }, true).then((response) => {
         this.bulletin = response
       })
 
@@ -140,52 +140,54 @@ export default {
       brq.get('/api/join-room', {
         'room_id': this.roomId,
         'name': this.name
-      }).then((response) => {
+      }, true).then((response) => {
         this.userId = response.user_id
 
         heartbeat()
       })
 
       // Singing scheduler
-      const scheduleNext = (index, parity, time) => {
+      const scheduleNext = async (index, parity, time) => {
         this.schedulers[index] = true
 
         // Nothing to do if we are not actually singing anything
         if ((!this.singing && parity === 0) ||
           index < 0 || this.bulletin[index].song < 0) return
 
-        brq.get('/api/get-mixed', {
+        console.log('hearme', this.$store.state.hearme)
+
+        const response = await brq.get('/api/get-mixed', {
           room_id: this.roomId,
           user_id: this.userId,
           hearme: this.$store.state.hearme,
           index: index,
           parity: parity
-        }, true).then((response) => {
-          return Promise.all([
-            response.range,
-            this.context.decodeAudioData(response.audio.buffer)
-          ])
-        }).then(([range, buffer]) => {
-          // Kick off the next schedule and also play the next
-          // sound
-          setTimeout(() => {
-            if (parity === 0 || (index === this.index && this.singing)) {
-              scheduleNext(index,
-                (parity + 1) % 2,
-                time + buffer.duration)
-            } else {
-              this.schedulers[index] = false
-            }
-          }, (time + buffer.duration -
-            this.context.currentTime) * 1000 / 2)
-          // Assume everyone will have submitted by
-          // about halfway to the next beat.
+        }, true)
+        const range = response.range
+        const buffer = await this.context.decodeAudioData(response.audio.buffer)
 
-          this.playingIndex = index
+        // Kick off the next schedule and also play the next
+        // sound
+        setTimeout(() => {
+          if (parity === 0 || (index === this.index && this.singing)) {
+            scheduleNext(index,
+              (parity + 1) % 2,
+              time + buffer.duration)
+          } else {
+            this.schedulers[index] = false
+          }
+        }, (time + buffer.duration -
+          this.context.currentTime) * 1000 / 2)
 
-          audio.playAudioBuffer(this.context, buffer, time)
-          return audio.recordAtTime(this.context, stream, time + range[0] / 1000, time + range[1] / 1000)
-        }).then(([buffer, offset]) => {
+        // Assume everyone will have submitted by
+        // about halfway to the next beat.
+        this.playingIndex = index
+
+        audio.playAudioBuffer(this.context, buffer, time)
+
+        if (this.$store.state.headphones) {
+          let [buffer, offset] = await audio.recordAtTime(this.context, stream, time + range[0] / 1000, time + range[1] / 1000)
+
           offset += this.$store.state.latency
 
           return brq.post('/api/submit-audio', {
@@ -196,7 +198,7 @@ export default {
             'audio': buffer,
             'offset': Math.round(offset * 1000)
           }, true)
-        })
+        }
       }
 
       // Heartbeat our presence to the server

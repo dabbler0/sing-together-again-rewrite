@@ -6,12 +6,16 @@ Vue.use(Vuex)
 export default new Vuex.Store({
   state: {
     latency: 0,
+    headphones: true,
     hearme: false,
     leader: false
   },
   mutations: {
     setLatency (state, latency) {
       state.latency = latency
+    },
+    setHeadphones (state, headphones) {
+      state.headphones = headphones
     },
     setHearme (state, hearme) {
       state.hearme = hearme
