@@ -9,7 +9,7 @@ function formatQs (data) {
 
   return '?' + components.join('&')
 }
-function get (url, data, retry) {
+function get (url, data, retry, cancel, backup) {
   const q = new XMLHttpRequest()
   q.open('GET', url +
     formatQs(data), true)
@@ -19,8 +19,11 @@ function get (url, data, retry) {
   return new Promise((resolve, reject) => {
     function rejectOrRetry (error) {
       if (retry) {
+        if (cancel && backup && cancel()) {
+          resolve(backup)
+        }
         setTimeout(() => {
-          resolve(get(url, data, retry))
+          resolve(get(url, data, retry, cancel, backup))
         }, 500)
       } else {
         reject(error)

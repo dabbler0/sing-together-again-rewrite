@@ -146,6 +146,8 @@ export default {
         heartbeat()
       })
 
+      const backupResponses = {}
+
       // Singing scheduler
       const scheduleNext = async (index, parity, time) => {
         this.schedulers[index] = true
@@ -154,7 +156,7 @@ export default {
         if ((!this.singing && parity === 0) ||
           index < 0 || this.bulletin[index].song < 0) return
 
-        console.log('hearme', this.$store.state.hearme)
+        if (!(index in backupResponses)) backupResponses[index] = {}
 
         const response = await brq.get('/api/get-mixed', {
           room_id: this.roomId,
@@ -162,7 +164,10 @@ export default {
           hearme: this.$store.state.hearme,
           index: index,
           parity: parity
-        }, true)
+        }, true, () => this.context.currentTime + 1000 > time, backupResponses[index][parity])
+
+        backupResponses[index][parity] = response
+
         const range = response.range
         const buffer = await this.context.decodeAudioData(response.audio.buffer)
 
@@ -202,7 +207,7 @@ export default {
       }
 
       // Heartbeat our presence to the server
-      // every 1.5 seconds
+      // every 3 seconds
       const heartbeat = () => {
         brq.get('/api/heartbeat', {
           'user_id': this.userId,
@@ -228,7 +233,7 @@ export default {
             scheduleNext(this.index, 0, this.context.currentTime + 1.5)
           }
 
-          setTimeout(heartbeat, 1500)
+          setTimeout(heartbeat, 3000)
         })
       }
     })

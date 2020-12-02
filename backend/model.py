@@ -131,7 +131,7 @@ class Room(model.RedisModel):
 
         return result
 
-    def cleanup(self, thresh = 5000):
+    def cleanup(self, thresh = 15000):
         '''
         Check to see whether any users should be removed from the room,
         and if any indices are now complete.
@@ -184,7 +184,6 @@ class Room(model.RedisModel):
             'singing': self.singing.get().decode('utf-8') == '1',
             'index': int(self.index.get().decode('utf-8')),
             'users': self.get_users()
-
         }
 
     def stop_singing(self):
