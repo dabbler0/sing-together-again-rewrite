@@ -51,7 +51,6 @@ class Room(model.RedisModel):
 
         user.name.set(name)
         user.room.set(self.pk.get())
-        user.last_active.set(int(time.time() * 1000))
 
         print('Created user and set last active')
 
@@ -131,48 +130,16 @@ class Room(model.RedisModel):
 
         return result
 
-    def cleanup(self, thresh = 15000):
+    def remove_user(self, user_pk):
         '''
-        Check to see whether any users should be removed from the room,
-        and if any indices are now complete.
+        Remove a certain user
         '''
-        wanted_indices = set()
+        user = User(user_pk)
 
-        for user_pk in self.users.smembers():
-            user_pk = user_pk.decode('utf-8')
+        self.users.srem(user_pk)
 
-            user = User(user_pk)
-            
-            # Remove any users who have not checked in within threshold time
-            if time.time() * 1000 - int(user.last_active.get()) > thresh:
-                self.users.srem(user_pk)
-                user.close()
-                user.delete()
-
-            # For still-active users, see what index they want
-            else:
-                wants_index = user.wants_index.get()
-
-                if wants_index is not None:
-                    wanted_indices.add(int(wants_index))
-
-        # Now tell everyone they can delete any indices that are
-        # not in their wanted indices
-        for user_pk in self.users.smembers():
-            user_pk = user_pk.decode('utf-8')
-
-            user = User(user_pk)
-
-            for key in user.clips.hkeys():
-                key = key.decode('utf-8')
-
-                index = int(key.split('-')[0])
-
-                if index not in wanted_indices:
-                    sfile = File(user.clips.hget(key).decode('utf-8'))
-                    sfile.delete()
-
-                    user.clips.hdel(key)
+        user.close()
+        user.delete()
 
     def get_bulletin(self):
         return encoding.decode(
@@ -244,13 +211,6 @@ class User(model.RedisModel):
             'name': self.name.get().decode('utf-8')
         }
 
-    def heartbeat(self, current_index):
-        '''
-        Indicate that this user has been active recently.
-        '''
-        self.last_active.set(int(time.time() * 1000))
-        self.wants_index.set(current_index)
-
     def update_audio(self, index, parity, audio, offset):
         '''
         Update this user's audio for service element (index)
@@ -264,8 +224,6 @@ class User(model.RedisModel):
         returns: None
         '''
 
-        print('UPDATING AUDIO', index, parity, len(audio), offset)
-
         key = '%d-%d' % (index, parity)
         if self.clips.hexists(key):
             sfile = File(self.clips.hget(key).decode('utf-8'))
@@ -274,7 +232,6 @@ class User(model.RedisModel):
             sfile = File()
 
             self.clips.hset(key, sfile.pk.get())
-            print('CREATED KEY', key, 'VALUE IS', sfile.pk.get())
 
         # If offset is positive, that means
         # recording started BEFORE the true beginning.
@@ -315,7 +272,13 @@ class User(model.RedisModel):
             result['offset']
         )
 
+    def remove_self_and_close(self):
+        # To be called bottom-up
+        room = Room(self.room.get())
+        room.remove_user(self.pk.get())
+
     def close(self):
+        # To be called top-down
         for key in self.clips.hkeys():
             sfile_pk = self.clips.hget(key).decode('utf-8')
             sfile = File(sfile_pk)

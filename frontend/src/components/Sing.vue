@@ -53,7 +53,7 @@
 
                       <v-card-text>
                         <v-list disabled>
-                          <v-list-item-group v-model="index">
+                          <v-list-item-group v-model="nextIndex">
                              <v-list-item
                               v-for="(item, i) in bulletin"
                               :key="i"
@@ -89,6 +89,7 @@
 <script>
 import brq from '@/binaryRequests'
 import audio from '@/audio'
+import io from 'socket.io-client'
 
 export default {
   name: 'Sing',
@@ -101,6 +102,8 @@ export default {
       'roomId': this.$route.params.room,
       'name': decodeURIComponent(this.$route.params.user),
 
+      'fetchedAudio': {},
+
       'roomSinging': false,
       'schedulers': {},
 
@@ -108,8 +111,12 @@ export default {
 
       'advanceMessage': 'Begin service',
 
-      'index': -1,
-      'playingIndex': -1,
+      'nextIndex': -1,
+      'nextParity': 0,
+      'nextTime': 0,
+      'nextSinging': false,
+      'updateIndex': -1,
+      'updateSinging': false,
       'userId': ''
     }
   },
@@ -120,123 +127,140 @@ export default {
       } else {
         brq.get('/api/start-song', {room_id: this.roomId, index: this.index + 1})
       }
-    }
-  },
-  created () {
-    window.setLatency = (latency) => {
-      this.$store.commit('setLatency', latency)
-    }
-    // Asynchronously also get songs
+    },
 
-    audio.getMediaStream().then((stream) => {
-      // Populate the bulletin
-      brq.get('/api/get-bulletin', {
-        'room_id': this.roomId
-      }, true).then((response) => {
-        this.bulletin = response
+    async fetchFor (index, parity) {
+      if (!(index in this.fetchedAudio)) {
+        this.fetchedAudio[index] = {}
+      }
+      const response = await brq.get('/api/get-mixed', {
+        room_id: this.roomId,
+        user_id: this.userId,
+        hearme: this.$store.state.hearme,
+        index,
+        parity
       })
+      this.fetchedAudio[index][parity] = {
+        range: response.range,
+        buffer: await this.context.decodeAudioData(response.audio.buffer)
+      }
+    },
 
-      // Join the relevant room
-      brq.get('/api/join-room', {
-        'room_id': this.roomId,
-        'name': this.name
-      }, true).then((response) => {
-        this.userId = response.user_id
+    async getMostRecentAudio (index, parity) {
+      if (!(index in this.fetchedAudio) || !(parity in this.fetchedAudio[index])) {
+        await this.fetchFor(index, parity)
+      }
+      return this.fetchedAudio[index][parity]
+    },
 
-        heartbeat()
-      })
+    async playLoop () {
+      this.nextSinging = true
 
-      const backupResponses = {}
-
-      // Singing scheduler
-      const scheduleNext = async (index, parity, time) => {
-        this.schedulers[index] = true
-
-        // Nothing to do if we are not actually singing anything
-        if ((!this.singing && parity === 0) ||
-          index < 0 || this.bulletin[index].song < 0) return
-
-        if (!(index in backupResponses)) backupResponses[index] = {}
-
-        const response = await brq.get('/api/get-mixed', {
-          room_id: this.roomId,
-          user_id: this.userId,
-          hearme: this.$store.state.hearme,
-          index: index,
-          parity: parity
-        }, true, () => this.context.currentTime + 1000 > time, backupResponses[index][parity])
-
-        backupResponses[index][parity] = response
-
-        const range = response.range
-        const buffer = await this.context.decodeAudioData(response.audio.buffer)
-
-        // Kick off the next schedule and also play the next
-        // sound
-        setTimeout(() => {
-          if (parity === 0 || (index === this.index && this.singing)) {
-            scheduleNext(index,
-              (parity + 1) % 2,
-              time + buffer.duration)
-          } else {
-            this.schedulers[index] = false
-          }
-        }, (time + buffer.duration -
-          this.context.currentTime) * 1000 / 2)
-
-        // Assume everyone will have submitted by
-        // about halfway to the next beat.
-        this.playingIndex = index
-
-        audio.playAudioBuffer(this.context, buffer, time)
-
-        if (this.$store.state.headphones) {
-          let [buffer, offset] = await audio.recordAtTime(this.context, stream, time + range[0] / 1000, time + range[1] / 1000)
-
-          offset += this.$store.state.latency
-
-          return brq.post('/api/submit-audio', {
-            'user_id': this.userId,
-            'index': index,
-            'parity': parity
-          }, {
-            'audio': buffer,
-            'offset': Math.round(offset * 1000)
-          }, true)
+      // Any time we finish a loop through,
+      // receive any updates the remote has for us.
+      if (this.nextParity === 0) {
+        // If we need to stop singing now, stop.
+        if (!this.updateSinging) {
+          this.nextSinging = false
+          return
+        } else if (this.updateIndex !== this.nextIndex) {
+          this.nextIndex = this.updateIndex
         }
       }
 
-      // Heartbeat our presence to the server
-      // every 3 seconds
-      const heartbeat = () => {
-        brq.get('/api/heartbeat', {
-          'user_id': this.userId,
-          'name': this.name,
-          'room_id': this.roomId,
-          'current_index': this.playingIndex
-        }, true).then(({ heart, room_data: roomData }) => {
-          this.userId = heart['user_id']
-          this.singing = roomData.singing
-          this.index = roomData.index
-          this.users = roomData.users
+      // Since this is an async function we want to make sure
+      // these values don't change in the middle of execution
+      const { nextIndex: index, nextParity: parity, nextTime: time } = this
 
-          if (this.singing) {
-            this.advanceMessage = 'Stop singing'
-          } else if (this.index + 1 < this.bulletin.length) {
-            console.log(this.index + 1, this.bulletin, this.bulletin[this.index + 1])
-            this.advanceMessage = 'Start ' + this.bulletin[this.index + 1].title
-          }
+      // Note: this function should be the ONLY one to modify
+      // nextTime and nextParity
 
-          // If we are not singing the song that
-          // everyone else is singing, start doing so.
-          if (!this.schedulers[this.index]) {
-            scheduleNext(this.index, 0, this.context.currentTime + 1.5)
-          }
+      // Get audio for this next audio and play it.
+      const { buffer, range } = await this.getMostRecentAudio(index, parity)
+      audio.playAudioBuffer(this.context, buffer, time)
+      this.nextParity = (parity + 1) % 2
+      this.nextTime = time + buffer.duration
 
-          setTimeout(heartbeat, 3000)
+      // Request a fetch for the opposite parity of this song
+      // about halfway through this next buffer.
+      setTimeout(
+        () => this.fetchFor(index, (parity + 1) % 2),
+        (this.nextTime - buffer.duration / 2) * 1000
+      )
+
+      // If we're recording for this user, record
+      // and submit. Don't block the play loop for this,
+      // just schedule it.
+      if (this.$store.state.headphones) {
+        // Record...
+        audio.recordAtTime(
+          this.context,
+          this.stream,
+          time + range[0] / 1000,
+          time + range[1] / 1000
+        ).then(([recordedBuffer, recordedOffset]) => {
+          // ...and submit.
+          brq.post('/api/submit-audio', {
+            'user_id': this.userId,
+            index,
+            parity
+          }, {
+            'audio': recordedBuffer,
+            'offset': Math.round(
+              (recordedOffset + this.$store.state.latency) * 1000
+            )
+          }, true)
         })
       }
+
+      // Schedule the next play registration
+      // some amount of time before the buffer must
+      // actually play.
+      setTimeout(
+        () => this.playLoop(),
+        (this.nextTime - buffer.duration / 4) * 1000
+      )
+    },
+    async register () {
+      this.socket.emit('register', { rid: this.roomId, name: this.name })
+    }
+  },
+
+  async created () {
+    // DEBUGGING
+    window.setLatency = (latency) => {
+      this.$store.commit('setLatency', latency)
+    }
+
+    // Open a socket connection and register
+    this.socket = io()
+
+    // Whenever we connect or reconnect,
+    // reregister
+    this.socket.on('connect', () => this.register())
+    this.socket.on('reconnect', () => this.register())
+
+    // Whenever we are informed of our uid, update it
+    this.socket.on('uid', (uid) => { this.userId = uid })
+
+    // Whenever we get info on the room status, update ours to reflect it
+    this.socket.on('update', ({ singing, index, users }) => {
+      this.users = users
+      this.updateIndex = index
+      this.updateSinging = singing
+
+      if (!this.nextSinging && this.updateSinging) {
+        this.playLoop()
+      }
+
+      this.singing = singing
     })
+
+    // Wait until the first time we get our uid
+    await new Promise((resolve) => this.socket.on('uid', resolve))
+
+    // Now we can begin. Get recording stream
+    this.stream = await audio.getMediaStream()
   }
 }
 </script>

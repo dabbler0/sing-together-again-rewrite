@@ -3,11 +3,18 @@ from flask_talisman import Talisman
 from . import encoding
 from .import pydub_helpers
 from .model import *
+from flask_socketio import SocketIO
+import os
+import redis
 
 app = Flask(__name__,
     static_folder = '../dist/static',
     template_folder = '../dist'
 )
+
+# Open up websockets
+socketio = SocketIO(app)
+redis = redis.from_url(os.environ['REDIS_URL'])
 
 #Talisman(app)
 
@@ -101,29 +108,6 @@ def get_bulletin():
 
     return room.bulletin.get()
 
-@app.route('/api/start-song')
-def set_index():
-    room_id = request.args['room_id']
-    index = int(request.args['index'])
-
-    room = Room(room_id)
-
-    room.set_index(index)
-    room.start_singing()
-
-    return encoding.encode({'success': True})
-
-@app.route('/api/join-room')
-def join_room():
-    room_id = request.args['room_id']
-    name = request.args['name']
-
-    room = Room(room_id)
-
-    return encoding.encode({
-        'user_id': room.new_user(name)
-    })
-
 @app.route('/api/get-mixed')
 def get_mixed():
     room_id = request.args['room_id']
@@ -167,49 +151,6 @@ def submit_audio():
 
 
 @app.route('/api/heartbeat')
-def heartbeat():
-    user_id = request.args['user_id']
-    room_id = request.args['room_id']
-    name = request.args['name']
-    current_index = request.args['current_index']
-
-    room = Room(room_id)
-
-    try:
-        user = User(user_id)
-    except Exception as e:
-        print('Couldn\'t fetch user, so making new one')
-        user = User(room.new_user(name))
-
-    # Make sure that this user really belongs to this room.
-    # If it doesn't, join a new user to this room
-
-    if (user.room.get().decode('utf-8') != room_id):
-        print('User room is wrong', user.room.get(), room_id, 'so making new one')
-        user = User(room.new_user(name))
-
-    user.heartbeat(current_index)
-
-    # TODO potentially handle cleanup at a different time,
-    # or different parts of cleanup at different times?
-    room.cleanup()
-
-    return encoding.encode({
-        'heart': {
-            'user_id': user.pk.get()
-        },
-        'room_data': room.get_state()
-    })
-
-@app.route('/api/stop-song')
-def stop_song():
-    room_id = request.args['room_id']
-
-    room = Room(room_id)
-
-    room.stop_singing()
-
-    return encoding.encode({'success': True})
 
 @app.route('/api/download-audio')
 def download_audio():
@@ -225,6 +166,71 @@ def download_audio():
     )
 
     return Response(pydub_helpers.as_mp3(segment_0 + segment_1), mimetype='audio/mpeg')
+
+# Socket.io for presence and start/stop commands
+sid_uid = {}
+sid_room = {}
+# New socket => new user
+@socketio.on('register')
+def register(json):
+    room_pk = json['rid']
+    name = json['name']
+
+    try:
+        room = Room(room_pk)
+
+        join_room(room_pk)
+
+        user_pk = room.new_user(name)
+
+        sid_uid[request.sid] = user_pk
+        sid_rid[request.sid] = room_pk
+
+        socket.emit('uid', user_pk)
+
+    except limpyd.exceptions.DoesNotExist:
+        pass
+
+@socketio.on('stop-song')
+def stop_song(json):
+    room_pk = sid_room[request.sid]
+    room = Room(room_pk)
+
+    room.stop_singing()
+
+    update_status(room_pk)
+
+@socketio.on('start-song')
+def set_index(json):
+    room_id = request.args['room_id']
+    index = int(request.args['index'])
+
+    room = Room(room_id)
+
+    room.set_index(json['index'])
+    room.start_singing()
+
+    update_status(room_pk)
+
+# Disconnect => remove previous user
+@socketio.on('disconnect')
+def disconnect():
+    if request.sid in sid_uid:
+        room_pk = sid_room[request.sid]
+
+        user = User(sid_uid[request.sid])
+        user.remove_self_and_close()
+
+        update_status(room_pk)
+
+def update_status(room_pk):
+    room = Room(room_pk)
+    socketio.emit(
+        'update',
+        room.get_state(),
+        broadcast=True,
+        room=room_pk
+    )
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8080, debug=True)
