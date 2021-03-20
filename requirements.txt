@@ -4,7 +4,7 @@ flask-talisman==0.7.0
 future==0.18.2
 gunicorn==20.0.4
 itsdangerous==1.1.0
-Jinja2==2.11.2
+Jinja2==2.11.3
 MarkupSafe==1.1.1
 pydub==0.24.1
 redis==3.5.3
